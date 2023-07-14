@@ -3,6 +3,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Properties;
+import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,6 +25,16 @@ public class JProxyProtocol {
 
         logger.log(Level.INFO, "Starting JProxyProtocol...");
         System.out.println("JProxyProtocol has started. Done!");
+
+        new Thread(() -> {
+            Scanner scanner = new Scanner(System.in);
+            while (true) {
+                String input = scanner.nextLine();
+                if ("stop".equalsIgnoreCase(input)) {
+                    System.exit(0);
+                }
+            }
+        }).start();
 
         try (ServerSocket serverSocket = new ServerSocket(listenPort)) {
             while (true) {
