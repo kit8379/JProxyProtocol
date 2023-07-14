@@ -3,7 +3,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Properties;
-import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,28 +20,12 @@ public class JProxyProtocol {
         int listenPort = Integer.parseInt(prop.getProperty("listen.port"));
         String targetIp = prop.getProperty("target.ip");
         int targetPort = Integer.parseInt(prop.getProperty("target.port"));
-        boolean isChainedProxy = Boolean.parseBoolean(prop.getProperty("proxy.chained"));
 
         logger.log(Level.INFO, "Starting JProxyProtocol...");
-        System.out.println("JProxyProtocol has started. Done!");
-
-        new Thread(() -> {
-            Scanner scanner = new Scanner(System.in);
-            while (true) {
-                String input = scanner.nextLine();
-                if ("stop".equalsIgnoreCase(input)) {
-                    System.exit(0);
-                }
-            }
-        }).start();
-
         try (ServerSocket serverSocket = new ServerSocket(listenPort)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                String clientIp = clientSocket.getInetAddress().getHostAddress();
-
-                // Log connection made
-                logger.log(Level.INFO, "Connection made from: " + clientIp);
+                logger.log(Level.INFO, "Connection established from: " + clientSocket.getInetAddress().getHostAddress()); // Log connection made
 
                 // Handle each connection in a new thread
                 new Thread(() -> {
@@ -50,19 +33,9 @@ public class JProxyProtocol {
                         OutputStream targetOut = targetSocket.getOutputStream();
 
                         // Write Proxy Protocol v1 header
-                        String header;
-                        String finalClientIp = clientIp;
-                        if (isChainedProxy) {
-                            BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                            String proxyHeader = reader.readLine(); // Proxy Protocol header from client
-                            String[] parts = proxyHeader.split(" ");
-                            if (parts.length < 6) {
-                                throw new IOException("Invalid Proxy Protocol header from client");
-                            }
-                            finalClientIp = parts[2];
-                        }
-                        header = "PROXY TCP4 " + finalClientIp + " " + targetSocket.getInetAddress().getHostAddress() + " "
-                                + clientSocket.getPort() + " " + targetSocket.getPort() + "\r\n";
+                        String header = "PROXY TCP4 " + clientSocket.getInetAddress().getHostAddress() + " "
+                                + targetSocket.getInetAddress().getHostAddress() + " " + clientSocket.getPort() + " "
+                                + targetSocket.getPort() + "\r\n";
                         targetOut.write(header.getBytes());
                         targetOut.flush();
 
@@ -79,7 +52,7 @@ public class JProxyProtocol {
                     } catch (Exception e) {
                         logger.log(Level.SEVERE, "An exception occurred in the main method.", e);
                     } finally {
-                        logger.log(Level.INFO, "Connection disconnected from: " + clientIp); // Log connection disconnected
+                        logger.log(Level.INFO, "Connection disconnected from: " + clientSocket.getInetAddress().getHostAddress()); // Log connection disconnected
                     }
                 }).start();
             }
@@ -116,6 +89,7 @@ class Forwarder implements Runnable {
             JProxyProtocol.logger.log(Level.SEVERE, "An exception occurred while forwarding data.", e);
         } finally {
             try {
+                // Here, you shutdown the output streams without closing the sockets
                 if(!inSocket.isOutputShutdown()) {
                     inSocket.shutdownOutput();
                 }
