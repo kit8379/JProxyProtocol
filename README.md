@@ -28,3 +28,15 @@ This will create a JAR file named 'JProxyProtocol.jar' in the same directory.
 
 To run the application, use the following command:
 
+   ```
+   java -jar JProxyProtocol.jar
+   ```
+
+
+This command will start the JProxyProtocol application, which will listen on port 25565 and forward the incoming traffic to localhost:30000 with Proxy Protocol v1 headers.
+
+## Stopping the Application
+
+To stop the application, simply terminate the running process in your terminal or command prompt by pressing `Ctrl+C`.
+
+
