@@ -9,16 +9,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class JProxyProtocol {
-    private static final Logger logger = Logger.getLogger(SimpleProx.class.getName());
+    public static final Logger logger = Logger.getLogger(JProxyProtocol.class.getName());
 
     public static void main(String[] args) {
-        try (ServerSocket serverSocket = new ServerSocket(8080)) { // listen on port 8080
+        logger.log(Level.INFO, "Starting JProxyProtocol...");
+        try (ServerSocket serverSocket = new ServerSocket(25565)) { // listen on port 8080
             while (true) {
                 Socket clientSocket = serverSocket.accept(); // accept connection from client
                 BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 String proxyHeader = reader.readLine(); // read Proxy Protocol header
 
-                Socket targetSocket = new Socket("localhost", 8081); // connect to target server
+                Socket targetSocket = new Socket("localhost", 30000); // connect to target server
                 PrintWriter writer = new PrintWriter(targetSocket.getOutputStream());
                 writer.println(proxyHeader); // write Proxy Protocol header
                 writer.flush();
@@ -29,6 +30,8 @@ public class JProxyProtocol {
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "An exception occurred in the main method.", e);
+        } finally {
+            logger.log(Level.INFO, "Stopping JProxyProtocol...");
         }
     }
 }
@@ -51,13 +54,13 @@ class Forwarder implements Runnable {
                 out.write(buffer, 0, read);
             }
         } catch (Exception e) {
-            SimpleProx.logger.log(Level.SEVERE, "An exception occurred while forwarding data.", e);
+            JProxyProtocol.logger.log(Level.SEVERE, "An exception occurred while forwarding data.", e);
         } finally {
             try {
                 in.close();
                 out.close();
             } catch (Exception e) {
-                SimpleProx.logger.log(Level.SEVERE, "An exception occurred while closing streams.", e);
+                JProxyProtocol.logger.log(Level.SEVERE, "An exception occurred while closing streams.", e);
             }
         }
     }
