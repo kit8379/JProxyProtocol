@@ -1,10 +1,7 @@
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,26 +9,38 @@ public class JProxyProtocol {
     public static final Logger logger = Logger.getLogger(JProxyProtocol.class.getName());
 
     public static void main(String[] args) {
+        Properties prop = new Properties();
+        try (InputStream input = new FileInputStream("config.properties")) {
+            prop.load(input);
+        } catch (IOException ex) {
+            logger.log(Level.SEVERE, "Unable to load properties file.", ex);
+        }
+
+        int listenPort = Integer.parseInt(prop.getProperty("listen.port"));
+        String targetIp = prop.getProperty("target.ip");
+        int targetPort = Integer.parseInt(prop.getProperty("target.port"));
+
         logger.log(Level.INFO, "Starting JProxyProtocol...");
-        try (ServerSocket serverSocket = new ServerSocket(25565)) { // listen on port 8080
+        try (ServerSocket serverSocket = new ServerSocket(listenPort)) {
             while (true) {
-                Socket clientSocket = serverSocket.accept(); // accept connection from client
-                BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                String proxyHeader = reader.readLine(); // read Proxy Protocol header
+                Socket clientSocket = serverSocket.accept();
 
-                Socket targetSocket = new Socket("localhost", 30000); // connect to target server
-                PrintWriter writer = new PrintWriter(targetSocket.getOutputStream());
-                writer.println(proxyHeader); // write Proxy Protocol header
-                writer.flush();
+                Socket targetSocket = new Socket(targetIp, targetPort);
+                OutputStream targetOut = targetSocket.getOutputStream();
 
-                // forward data between client and server
-                new Thread(new Forwarder(clientSocket.getInputStream(), targetSocket.getOutputStream())).start();
+                // Write Proxy Protocol v1 header
+                String header = "PROXY TCP4 " + clientSocket.getInetAddress().getHostAddress() + " "
+                        + targetSocket.getInetAddress().getHostAddress() + " " + clientSocket.getPort() + " "
+                        + targetSocket.getPort() + "\r\n";
+                targetOut.write(header.getBytes());
+                targetOut.flush();
+
+                // Forward data between client and server
+                new Thread(new Forwarder(clientSocket.getInputStream(), targetOut)).start();
                 new Thread(new Forwarder(targetSocket.getInputStream(), clientSocket.getOutputStream())).start();
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "An exception occurred in the main method.", e);
-        } finally {
-            logger.log(Level.INFO, "Stopping JProxyProtocol...");
         }
     }
 }
